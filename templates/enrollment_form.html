@@ -1,0 +1,42 @@
+ {% extends 'base.html' %}
+
+{% block content %}
+<h2>Enroll Student: {{ student.first_name }} {{ student.last_name }} ({{ student.student_number }})</h2>
+
+<form method="POST" class="mt-3">
+    <h4>Select Classes to Enroll:</h4>
+    <table class="table table-bordered table-hover mt-2">
+        <thead class="table-dark">
+            <tr>
+                <th style="width: 50px;">Select</th>
+                <th>Course</th>
+                <th>Section</th>
+                <th>Schedule</th>
+                <th>Room</th>
+                <th>Units</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for off in offerings %}
+            <tr>
+                <td class="text-center">
+                    <input type="checkbox" name="offering_ids" value="{{ off.offering_id }}" class="form-check-input">
+                </td>
+                <td><strong>{{ off.course_code }}</strong> - {{ off.course_title }}</td>
+                <td>{{ off.section_name }}</td>
+                <td>{{ off.schedule }}</td>
+                <td>{{ off.room }}</td>
+                <td>{{ off.units }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center">No available course offerings found. Create offerings first.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <button type="submit" class="btn btn-primary">Complete Enrollment</button>
+    <a href="{{ url_for('student_profile', student_id=student.student_id) }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

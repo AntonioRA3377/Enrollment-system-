@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Student Profile</h2>
+        <div>
+<a href="{{ url_for('student_enroll', student_id=student.student_id) }}" class="btn btn-info me-2">Manage Enrollments</a>
+            <a href="{{ url_for('student_edit', student_id=student.student_id) }}" class="btn btn-warning me-2">Edit Profile</a>
+            <a href="{{ url_for('students') }}" class="btn btn-secondary">Back to List</a>
+            <a href="{{ url_for('student_enroll', student_id=student.student_id) }}" class="btn btn-success">Enroll Courses</a>
+        </div>
+    </div>
+
+    {% if updated %}
+        <div class="alert alert-success">Profile updated successfully!</div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <strong>{{ student.first_name }} {{ student.middle_name or '' }} {{ student.last_name }}</strong>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-2">
+                    <strong>Student Number:</strong> {{ student.student_number }}
+                </div>
+                <div class="col-md-6 mb-2">
+                    <strong>Degree Program:</strong> {{ student.program_code or 'Not Assigned' }} - {{ student.program_name or '' }}
+                </div>
+                <div class="col-md-6 mb-2">
+                    <strong>Year Level:</strong> {% if student.year_level %}{{ student.year_level }}{% else %}N/A{% endif %}
+                </div>
+                <div class="col-md-6 mb-2">
+                    <strong>Email:</strong> {{ student.email }}
+                </div>
+                <div class="col-md-6 mb-2">
+                    <strong>Birthdate:</strong> {{ student.birthdate or 'N/A' }}
+                </div>
+                <div class="col-md-6 mb-2">
+                    <strong>Contact Number:</strong> {{ student.contact_number or 'N/A' }}
+                </div>
+                <div class="col-12 mb-2">
+                    <strong>Address:</strong> {{ student.address or 'N/A' }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

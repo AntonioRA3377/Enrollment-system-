@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Enrollment System{% endblock %}</title>
+  <style>
+    :root {
+      --ink: #1f2933;
+      --muted: #52606d;
+      --line: #d5dae1;
+      --page: #f7f8fa;
+      --accent: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.5;
+      color: var(--ink);
+      background: var(--page);
+      margin: 0;
+      display: flex;
+      min-height: 100vh;
+    }
+    
+    .sidebar {
+      width: 250px;
+      background: #ffffff;
+      border-right: 1px solid var(--line);
+      padding: 24px 16px;
+      flex-shrink: 0;
+    }
+    .sidebar h2 { margin-top: 0; font-size: 1.25rem; margin-bottom: 24px; color: var(--ink); }
+    .sidebar nav { display: flex; flex-direction: column; gap: 8px; }
+    .sidebar nav a {
+      display: block;
+      padding: 10px 12px;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: bold;
+      border-radius: 6px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .sidebar nav a:hover { background: #eef1f5; color: var(--accent); }
+    
+    .content-wrapper {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+    @media (max-width: 768px) { 
+      body { flex-direction: column; } 
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--line); }
+    }
+
+    h1 { font-size: 1.5rem; margin: 0 0 16px; }
+    a { color: var(--accent); }
+    :focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+
+    form.narrow { max-width: 520px; }
+    label { display: block; margin-top: 14px; font-weight: bold; }
+    input, textarea, select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      font: inherit;
+      border: 1px solid #9aa5b1;
+      border-radius: 4px;
+      background: #ffffff;
+    }
+    .hint { font-size: 0.875rem; font-weight: normal; color: var(--muted); }
+
+    button, .button, .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      font: inherit;
+      font-weight: bold;
+      color: #ffffff;
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      cursor: pointer;
+      text-decoration: none;
+      border: none;
+    }
+    .button.secondary, .btn-secondary { color: var(--accent); background: #ffffff; border: 1px solid var(--accent); }
+    .button.danger, .btn-danger { background: #b42318; border-color: #b42318; }
+    .button.small, .btn-sm { padding: 4px 10px; font-size: 0.875rem; }
+    form.inline { display: inline; }
+    td.row-actions { white-space: nowrap; }
+    .actions { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .message, .alert { padding: 10px 12px; border-radius: 4px; margin: 0 0 12px; }
+    .error, .alert-danger { color: #8a1020; background: #fde8ea; }
+    .success, .alert-success { color: #14532d; background: #dcfce7; }
+
+    .search { display: flex; gap: 8px; margin-bottom: 16px; }
+    .search input { flex: 1; margin-top: 0; }
+    .table-wrap { overflow-x: auto; }
+    table, .table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); }
+    th { background: #eef1f5; }
+
+    dl.details { display: grid; grid-template-columns: 180px 1fr; gap: 8px 16px; margin: 0; }
+    dl.details dt { font-weight: bold; }
+    dl.details dd { margin: 0; overflow-wrap: anywhere; }
+
+    .mt-4 { margin-top: 1.5rem; }
+    .mb-3 { margin-bottom: 1rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mb-0 { margin-bottom: 0; }
+    .ms-2 { margin-left: 0.5rem; }
+    .me-2 { margin-right: 0.5rem; }
+    .d-flex { display: flex; }
+    .justify-content-between { justify-content: space-between; }
+    .align-items-center { align-items: center; }
+    .d-inline { display: inline-block; }
+    .text-danger { color: #b42318; }
+    .text-center { text-align: center; }
+    .row { display: flex; flex-wrap: wrap; margin: -8px; }
+    .col-md-6 { flex: 0 0 50%; max-width: 50%; padding: 8px; }
+    .col-md-4 { flex: 0 0 33.333%; max-width: 33.333%; padding: 8px; }
+    .col-12 { flex: 0 0 100%; max-width: 100%; padding: 8px; }
+    .card { border: 1px solid var(--line); border-radius: 4px; }
+    .card-header { padding: 12px; background: var(--accent); color: white; border-bottom: 1px solid var(--line); }
+    .card-body { padding: 16px; }
+  </style>
+</head>
+<body>
+  
+  <div class="sidebar">
+    <h2>Admin Dashboard</h2>
+    <nav aria-label="Main">
+      <a href="{{ url_for('students') }}">Students</a>
+      <a href="{{ url_for('register') }}">Register student</a>
+      <a href="{{ url_for('programs') }}">Programs</a>
+      <a href="{{ url_for('courses') }}">Courses</a>
+      <a class="nav-link" href="{{ url_for('offerings') }}">Course Offerings</a>
+    </nav>
+  </div>
+
+  <div class="content-wrapper">
+    <main>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <p class="message {{ category }}" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}</p>
+        {% endfor %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+</body>
+</html>

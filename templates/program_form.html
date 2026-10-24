@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>{% if program %}Edit Program: {{ program.program_code }}{% else %}Add New Program{% endif %}</h2>
+
+    {% if errors %}
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+            {% for error in errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <form method="POST" class="mt-4">
+        <div class="mb-3">
+            <label for="program_code" class="form-label">Program Code (e.g., BSIT, BSCS) <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="program_code" name="program_code" value="{{ form.program_code }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="program_name" class="form-label">Full Program Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="program_name" name="program_name" value="{{ form.program_name }}" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">{% if program %}Save Changes{% else %}Add Program{% endif %}</button>
+        <a href="{{ url_for('programs') }}" class="btn btn-secondary mt-3 ms-2">Cancel</a>
+    </form>
+</div>
+{% endblock %}

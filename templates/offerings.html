@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Course Offerings</h2>
+    <a href="{{ url_for('offering_new') }}" class="btn btn-primary">+ Add New Offering</a>
+</div>
+
+<table class="table table-striped table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Course</th>
+            <th>Section</th>
+            <th>Schedule</th>
+            <th>Room</th>
+            <th>Capacity</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for o in offerings %}
+        <tr>
+            <td>{{ o.offering_id }}</td>
+            <td><strong>{{ o.course_code }}</strong> - {{ o.course_title }}</td>
+            <td>{{ o.section_name }}</td>
+            <td>{{ o.schedule }}</td>
+            <td>{{ o.room }}</td>
+            <td>{{ o.capacity }}</td>
+            <td>
+                <form action="{{ url_for('offering_delete', offering_id=o.offering_id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete offering?');">
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="7" class="text-center">No course offerings found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
