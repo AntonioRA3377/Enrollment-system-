@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h2>System Overview</h2>
+<hr>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;" class="mt-3">
+    <div class="card" style="text-align: center; padding: 20px;">
+        <h3>Students</h3>
+        <p style="font-size: 2rem; margin: 0; font-weight: bold; color: var(--accent);">{{ total_students }}</p>
+    </div>
+    <div class="card" style="text-align: center; padding: 20px;">
+        <h3>Programs</h3>
+        <p style="font-size: 2rem; margin: 0; font-weight: bold; color: var(--accent);">{{ total_programs }}</p>
+    </div>
+    <div class="card" style="text-align: center; padding: 20px;">
+        <h3>Courses</h3>
+        <p style="font-size: 2rem; margin: 0; font-weight: bold; color: var(--accent);">{{ total_courses }}</p>
+    </div>
+    <div class="card" style="text-align: center; padding: 20px;">
+        <h3>Enrollments</h3>
+        <p style="font-size: 2rem; margin: 0; font-weight: bold; color: var(--accent);">{{ total_enrollments }}</p>
+    </div>
+    <div class="card" style="text-align: center; padding: 20px;">
+        <h3>Total Revenue</h3>
+        <p style="font-size: 1.8rem; margin: 0; font-weight: bold; color: var(--success);">₱{{ "{:,.2f}".format(total_revenue) }}</p>
+    </div>
+</div>
+{% endblock %}

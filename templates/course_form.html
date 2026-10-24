@@ -1,33 +1,55 @@
 {% extends "base.html" %}
-{% block title %}{% if course %}Edit Course{% else %}Add Course{% endif %}{% endblock %}
+
+{% block title %}{{ 'Edit Course' if course else 'Add Course' }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>{% if course %}Edit Course: {{ course.course_code }}{% else %}Add New Course{% endif %}</h2>
-
-    {% if errors %}
-        <div class="message error">
-            <ul style="margin: 0;">
-            {% for error in errors %}
-                <li>{{ error }}</li>
-            {% endfor %}
-            </ul>
+<div style="max-width: 500px; margin: 0 auto;">
+    <h2>{{ 'Edit Course' if course else 'Add New Course' }}</h2>
+    <hr>
+    
+    <form method="POST">
+        <div>
+            <label for="course_code">Course Code</label>
+            <input 
+                type="text" 
+                id="course_code" 
+                name="course_code" 
+                value="{{ course.course_code if course else '' }}" 
+                placeholder="e.g. IT301" 
+                required
+            >
         </div>
-    {% endif %}
 
-    <form method="POST" class="narrow mt-4">
-        <label for="course_code">Course Code <span style="color: #b42318;">*</span></label>
-        <input type="text" id="course_code" name="course_code" value="{{ form.course_code }}" placeholder="e.g., IT301" required>
+        <div>
+            <label for="course_title">Course Title</label>
+            <input 
+                type="text" 
+                id="course_title" 
+                name="course_title" 
+                value="{{ course.course_title if course else '' }}" 
+                placeholder="e.g. Web Systems and Technologies" 
+                required
+            >
+        </div>
 
-        <label for="course_title">Course Title <span style="color: #b42318;">*</span></label>
-        <input type="text" id="course_title" name="course_title" value="{{ form.course_title }}" placeholder="e.g., Software Engineering" required>
-        
-        <label for="units">Units <span style="color: #b42318;">*</span></label>
-        <input type="number" id="units" name="units" value="{{ form.units }}" required>
+        <div>
+            <label for="units">Units</label>
+            <input 
+                type="number" 
+                id="units" 
+                name="units" 
+                value="{{ course.units if course else 3 }}" 
+                min="1" 
+                max="6" 
+                required
+            >
+        </div>
 
-        <div class="actions">
-            <button type="submit" class="button">{% if course %}Save Changes{% else %}Add Course{% endif %}</button>
-            <a href="{{ url_for('courses') }}" class="button secondary">Cancel</a>
+        <div class="d-flex justify-content-between align-items-center mt-4">
+            <a href="{{ url_for('courses') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-success">
+                {{ 'Update Course' if course else 'Save Course' }}
+            </button>
         </div>
     </form>
 </div>
