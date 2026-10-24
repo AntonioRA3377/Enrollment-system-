@@ -4,15 +4,15 @@
 {% block content %}
   <h1>Students</h1>
 
-  <form class="search" method="get" action="{{ url_for('students') }}">
+  <form class="search mb-3" method="get" action="{{ url_for('students') }}">
     <label for="q" class="hint" style="margin:0; align-self:center;">Search</label>
-    <input id="q" name="q" value="{{ q }}" placeholder="Name, student number, or email">
+    <input id="q" name="q" value="{{ q or '' }}" placeholder="Name, student number, or email">
     <button type="submit">Search</button>
   </form>
 
   {% if students %}
     <div class="table-wrap">
-      <table>
+      <table class="table table-bordered table-striped">
         <thead>
           <tr>
             <th scope="col">Student number</th>
@@ -20,7 +20,7 @@
             <th scope="col">Program</th>
             <th scope="col">Year</th>
             <th scope="col">Email</th>
-            <th scope="col"><span class="hint">Profile</span></th>
+            <th scope="col"><span class="hint">Action</span></th>
           </tr>
         </thead>
         <tbody>
@@ -28,10 +28,14 @@
             <tr>
               <td>{{ s.student_number }}</td>
               <td>{{ s.last_name }}, {{ s.first_name }}</td>
-              <td>{{ s.program_code or 'Not assigned' }}</td>
-              <td>{{ s.year_level }}</td>
+              <td>{{ s.program_code or s.program_name or 'Not assigned' }}</td>
+              <td>{{ s.year_level or '1' }}</td>
               <td>{{ s.email }}</td>
-              <td><a href="{{ url_for('student_profile', student_id=s.student_id) }}">View profile</a></td>
+              <td>
+                <a href="{{ url_for('enroll', student_id=s.student_id) }}" class="btn btn-sm btn-primary">
+                  Enroll Courses
+                </a>
+              </td>
             </tr>
           {% endfor %}
         </tbody>
@@ -40,6 +44,6 @@
   {% elif q %}
     <p>No students match "{{ q }}". Try a different name, number, or email.</p>
   {% else %}
-    <p>No students are registered yet. <a href="{{ url_for('register') }}">Register the first student.</a></p>
+    <p>No students are registered yet. <a href="{{ url_for('student_new') }}">Register the first student.</a></p>
   {% endif %}
 {% endblock %}
