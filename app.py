@@ -1,10 +1,24 @@
 import uuid
 from datetime import datetime
 import mysql.connector
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_key'
+
+# ---------------------------------------------------------
+# AUTHENTICATION DECORATOR
+# ---------------------------------------------------------
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please log in to access this page.', 'warning')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # ---------------------------------------------------------
 # DATABASE CONFIGURATION
@@ -27,6 +41,7 @@ def get_db_connection():
 # ---------------------------------------------------------
 @app.route('/')
 @app.route('/dashboard')
+@login_required
 def dashboard():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -63,6 +78,7 @@ def dashboard():
 # STUDENTS ROUTES
 # ---------------------------------------------------------
 @app.route('/students')
+@login_required
 def students():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -94,6 +110,7 @@ def students():
 
 
 @app.route('/student/<int:student_id>')
+@login_required
 def student_profile(student_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -120,6 +137,7 @@ def student_profile(student_id):
 
 
 @app.route('/student/new', methods=['GET', 'POST'])
+@login_required
 def student_new():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -157,6 +175,7 @@ def student_new():
 
 
 @app.route('/student/edit/<int:student_id>', methods=['GET', 'POST'])
+@login_required
 def student_edit(student_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -204,6 +223,7 @@ def student_edit(student_id):
 
 
 @app.route('/student/delete/<int:student_id>', methods=['POST'])
+@login_required
 def student_delete(student_id):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -228,6 +248,7 @@ def student_delete(student_id):
 # PROGRAMS & COURSES ROUTES
 # ---------------------------------------------------------
 @app.route('/programs')
+@login_required
 def programs():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -239,6 +260,7 @@ def programs():
 
 
 @app.route('/courses')
+@login_required
 def courses():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -250,6 +272,7 @@ def courses():
 
 
 @app.route('/course/new', methods=['GET', 'POST'])
+@login_required
 def course_new():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -281,6 +304,7 @@ def course_new():
 
 
 @app.route('/course/edit/<int:course_id>', methods=['GET', 'POST'])
+@login_required
 def course_edit(course_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -319,6 +343,7 @@ def course_edit(course_id):
 
 
 @app.route('/course/delete/<int:course_id>', methods=['POST'])
+@login_required
 def course_delete(course_id):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -341,6 +366,7 @@ def course_delete(course_id):
 # LAB 8: COURSE OFFERINGS ROUTES
 # ---------------------------------------------------------
 @app.route('/offerings')
+@login_required
 def offerings():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -358,6 +384,7 @@ def offerings():
 
 
 @app.route('/offering/new', methods=['GET', 'POST'])
+@login_required
 def offering_new():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -395,6 +422,7 @@ def offering_new():
 
 
 @app.route('/offering/delete/<int:offering_id>', methods=['POST'])
+@login_required
 def offering_delete(offering_id):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -420,6 +448,7 @@ def offering_delete(offering_id):
 # LAB 11 & LAB 12: ENROLLMENT VALIDATION & TRANSACTION
 # ---------------------------------------------------------
 @app.route('/enrollments')
+@login_required
 def enrollments():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -439,6 +468,7 @@ def enrollments():
 
 
 @app.route('/enroll/<int:student_id>', methods=['GET', 'POST'])
+@login_required
 def enroll(student_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -556,6 +586,7 @@ def enroll(student_id):
 
 
 @app.route('/assessment/<int:enrollment_id>')
+@login_required
 def assessment(enrollment_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -607,6 +638,7 @@ def assessment(enrollment_id):
 # LAB 10: PAYMENT PROCESSING & RECEIPT ROUTES
 # ---------------------------------------------------------
 @app.route('/payment/new/<int:enrollment_id>', methods=['GET', 'POST'])
+@login_required
 def payment_new(enrollment_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -675,6 +707,7 @@ def payment_new(enrollment_id):
 
 
 @app.route('/receipt/<int:payment_id>')
+@login_required
 def receipt(payment_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -702,6 +735,7 @@ def receipt(payment_id):
 # LAB 13: STATEMENT OF ACCOUNT & SUMMARY REPORT
 # ---------------------------------------------------------
 @app.route('/student/<int:student_id>/soa')
+@login_required
 def statement_of_account(student_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -784,6 +818,43 @@ def statement_of_account(student_id):
         balance_due=balance_due,
         payments=payments_history
     )
+
+
+
+
+# ---------------------------------------------------------
+# LAB 14: AUTHENTICATION & LOGIN ROUTES
+# ---------------------------------------------------------
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if user and check_password_hash(user['password_hash'], password):
+            session['user_id'] = user['user_id']
+            session['username'] = user['username']
+            session['role'] = user['role']
+            flash('Login successful!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid username or password.', 'danger')
+
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('login'))
 
 
 if __name__ == '__main__':
