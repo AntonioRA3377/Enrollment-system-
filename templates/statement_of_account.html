@@ -67,26 +67,26 @@
             </div>
             <div style="display: flex; justify-content: space-between; padding: 4px 0;">
                 <span>Tuition Fee (₱500 / unit):</span>
-                <span>₱{{ "{:,.2f}".format(tuition_fee) }}</span>
+                <span>₱{{ "{:,.2f}".format(tuition_fee | default(0)) }}</span>
             </div>
             <div style="display: flex; justify-content: space-between; padding: 4px 0;">
                 <span>Registration / Misc Fee:</span>
-                <span>₱{{ "{:,.2f}".format(miscellaneous_fee) }}</span>
+                <span>₱{{ "{:,.2f}".format(miscellaneous_fee | default(0)) }}</span>
             </div>
             <hr>
             <div style="display: flex; justify-content: space-between; padding: 4px 0;">
                 <strong>Grand Total Assessed:</strong>
-                <strong>₱{{ "{:,.2f}".format(grand_total) }}</strong>
+                <strong>₱{{ "{:,.2f}".format(grand_total | default(0)) }}</strong>
             </div>
             <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #28a745;">
                 <span>Total Payments Received:</span>
-                <span>- ₱{{ "{:,.2f}".format(total_paid) }}</span>
+                <span>- ₱{{ "{:,.2f}".format(total_paid | default(0)) }}</span>
             </div>
             <hr>
             <div style="display: flex; justify-content: space-between; padding: 8px; font-size: 1.15rem; font-weight: bold; background: #f8f9fa; border-radius: 4px;">
                 <span>Balance Due:</span>
                 <span style="color: {% if balance_due > 0 %}#dc3545{% else %}#28a745{% endif %};">
-                    ₱{{ "{:,.2f}".format(balance_due) }}
+                    ₱{{ "{:,.2f}".format(balance_due | default(0)) }}
                 </span>
             </div>
         </div>

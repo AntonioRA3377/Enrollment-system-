@@ -67,7 +67,7 @@
                 <td style="padding: 10px;">{{ s.email }}</td>
                 <td style="padding: 10px;">{{ s.program_code or 'Unassigned' }}</td>
                 <td style="padding: 10px; text-align: center;">
-                    <a href="{{ url_for('student_profile', student_id=s.student_id) }}" class="btn btn-sm btn-info" style="margin-right: 5px; color: #fff; text-decoration: none; padding: 5px 10px; background: #0dcaf0; border-radius: 4px; font-size: 0.85rem;">View</a>
+                    <a href="{{ url_for('student_profile', student_id=s.student_id) }}" class="btn btn-sm btn-info" style="margin-right: 5px; color: #fff; text-decoration: none; padding: 5px 10px; background: #0dcaf0; border-radius: 4px; font-size: 0.85rem;">View</a> <a href="{{ url_for('student_enrollment', student_id=s.student_id) }}" class="btn btn-sm btn-warning text-dark" style="padding: 3px 8px;">Enroll</a>
                     <a href="{{ url_for('statement_of_account', student_id=s.student_id) }}" class="btn btn-sm btn-secondary" style="color: #fff; text-decoration: none; padding: 5px 10px; background: #6c757d; border-radius: 4px; font-size: 0.85rem;">SOA</a>
                 </td>
             </tr>

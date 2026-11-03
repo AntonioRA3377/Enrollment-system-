@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Course Enrollment - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-3">
+        <h2>Course Enrollment: {{ student.first_name }} {{ student.last_name }} ({{ student.student_number }})</h2>
+        <a href="{{ url_for('students') }}" class="btn btn-secondary">&laquo; Back to Roster</a>
+    </div>
+
+    <!-- Add Enrollment Form -->
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #ddd;" class="mb-4">
+        <h4>Add Course to Schedule</h4>
+        {% if available %}
+        <form method="POST" action="{{ url_for('student_enrollment', student_id=student.student_id) }}" style="display: flex; gap: 10px; align-items: center;" class="mt-3">
+            <select name="offering_id" class="form-select" required style="flex: 1; padding: 8px; border-radius: 4px;">
+                <option value="" disabled selected>-- Select Available Course Offering --</option>
+                {% for item in available %}
+                <option value="{{ item.offering_id }}">
+                    {{ item.course_code }} - {{ item.course_name }} ({{ item.section }} | {{ item.semester }} {{ item.academic_year }}) - {{ item.units }} Units
+                </option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary" style="padding: 8px 16px;">Enroll Student</button>
+        </form>
+        {% else %}
+        <p class="text-muted mb-0">No additional course offerings available for enrollment.</p>
+        {% endif %}
+    </div>
+
+    <!-- Enrolled Courses Table -->
+    <h4>Currently Enrolled Classes</h4>
+    <table class="table table-bordered table-striped" style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+        <thead>
+            <tr style="background: #212529; color: #fff;">
+                <th style="padding: 10px; color: #fff;">Course Code</th>
+                <th style="padding: 10px; color: #fff;">Course Name</th>
+                <th style="padding: 10px; color: #fff;">Section</th>
+                <th style="padding: 10px; color: #fff;">Term</th>
+                <th style="padding: 10px; color: #fff;">Units</th>
+                <th style="padding: 10px; color: #fff;">Status</th>
+                <th style="padding: 10px; color: #fff;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in enrolled %}
+            <tr>
+                <td style="padding: 8px;"><strong>{{ item.course_code }}</strong></td>
+                <td style="padding: 8px;">{{ item.course_name }}</td>
+                <td style="padding: 8px;">{{ item.section }}</td>
+                <td style="padding: 8px;">{{ item.semester }} {{ item.academic_year }}</td>
+                <td style="padding: 8px;">{{ item.units }}</td>
+                <td style="padding: 8px;"><span class="badge bg-success" style="padding: 4px 8px; background: #198754; color: white; border-radius: 4px;">{{ item.status }}</span></td>
+                <td style="padding: 8px;">
+                    <form method="POST" action="{{ url_for('drop_enrollment', enrollment_id=item.enrollment_id, student_id=student.student_id) }}" onsubmit="return confirm('Drop this course for {{ student.first_name }}?');" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-sm" style="padding: 4px 10px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Drop</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 15px;">This student is not currently enrolled in any courses.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
