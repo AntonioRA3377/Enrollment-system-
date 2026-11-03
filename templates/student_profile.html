@@ -3,31 +3,61 @@
 {% block title %}Student Profile - {{ student.first_name }} {{ student.last_name }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4" style="max-width: 700px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-    <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-3">
-        <h2>Student Profile</h2>
-        <div>
-            <a href="{{ url_for('student_edit', student_id=student.student_id) }}" class="btn btn-warning">Edit Profile</a>
-            <a href="{{ url_for('students') }}" class="btn btn-secondary">Back to List</a>
+<div class="container mt-4">
+    <div style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 25px;">
+        <div style="display: flex; gap: 25px; align-items: center;">
+            <!-- Profile Picture Display -->
+            <div>
+                {% if student.profile_image and student.profile_image != 'default_avatar.png' %}
+                    <img src="{{ url_for('static', filename='uploads/' + student.profile_image) }}" alt="Profile Photo" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #0d6efd;">
+                {% else %}
+                    <div style="width: 120px; height: 120px; border-radius: 50%; background: #e9ecef; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #6c757d; border: 3px solid #ccc;">
+                        👤
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Student Info Header -->
+            <div style="flex: 1;">
+                <h2 style="margin: 0 0 5px 0;">{{ student.first_name }} {{ student.last_name }}</h2>
+                <p style="margin: 0 0 5px 0; color: #666;"><strong>Student #:</strong> {{ student.student_number }}</p>
+                <p style="margin: 0 0 5px 0; color: #666;"><strong>Program:</strong> {{ student.program_code or 'Unassigned' }} - {{ student.program_name or 'No Program' }}</p>
+                <p style="margin: 0; color: #666;"><strong>Email:</strong> {{ student.email }}</p>
+            </div>
+
+            <!-- Quick Action Links -->
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <a href="{{ url_for('statement_of_account', student_id=student.student_id) }}" class="btn btn-primary" style="padding: 8px 16px; text-decoration: none; background: #0d6efd; color: #fff; border-radius: 4px; text-align: center;">View Statement of Account</a>
+                <a href="{{ url_for('students') }}" class="btn btn-secondary" style="padding: 8px 16px; text-decoration: none; background: #6c757d; color: #fff; border-radius: 4px; text-align: center;">&laquo; Back to Roster</a>
+            </div>
         </div>
     </div>
-    <hr>
 
-    <div class="profile-details mb-4">
-        <p><strong>Student ID:</strong> {{ student.student_id }}</p>
-        <p><strong>Student Number:</strong> {{ student.student_number }}</p>
-        <p><strong>Full Name:</strong> {{ student.first_name }} {{ student.last_name }}</p>
-        <p><strong>Email Address:</strong> {{ student.email }}</p>
-        <p><strong>Degree Program:</strong> {{ student.program_code or 'N/A' }} - {{ student.program_name or 'Unassigned' }}</p>
-    </div>
-
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <a href="{{ url_for('enroll', student_id=student.student_id) }}" class="btn btn-primary">
-            Enroll Courses
-        </a>
-        <a href="{{ url_for('statement_of_account', student_id=student.student_id) }}" class="btn btn-info">
-            View Statement of Account
-        </a>
+    <!-- Enrolled Courses Section -->
+    <div style="background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <h4 class="mb-3">Enrolled Courses</h4>
+        <table class="table table-bordered" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f8f9fa;">
+                    <th style="padding: 10px; border: 1px solid #dee2e6;">Course Code</th>
+                    <th style="padding: 10px; border: 1px solid #dee2e6;">Course Description</th>
+                    <th style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">Units</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in enrollments %}
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;"><strong>{{ e.course_code }}</strong></td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6;">{{ e.course_name or 'N/A' }}</td>
+                    <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">{{ e.units }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" style="text-align: center; padding: 15px;">No active course enrollments found for this student.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}

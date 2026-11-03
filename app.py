@@ -7,6 +7,18 @@ from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_key'
+import os
+from werkzeug.utils import secure_filename
+
+UPLOAD_FOLDER = os.path.join('static', 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 # ---------------------------------------------------------
 # AUTHENTICATION DECORATOR
@@ -147,26 +159,27 @@ def student_profile(student_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute(
-        """
-        SELECT s.*, p.program_code, p.program_name 
+    cursor.execute("""
+        SELECT s.*, p.program_name, p.program_code 
         FROM students s 
-        LEFT JOIN programs p ON s.program_id = p.program_id
+        LEFT JOIN programs p ON s.program_id = p.program_id 
         WHERE s.student_id = %s
-    """,
-        (student_id,),
-    )
+    """, (student_id,))
     student = cursor.fetchone()
+
+    if not student:
+        cursor.close()
+        conn.close()
+        flash('Student not found.', 'danger')
+        return redirect(url_for('students'))
+
+    cursor.execute("""SELECT e.* FROM enrollments e WHERE e.student_id = %s""", (student_id,))
+    enrollments = cursor.fetchall()
 
     cursor.close()
     conn.close()
 
-    if not student:
-        flash('Student not found.', 'danger')
-        return redirect(url_for('students'))
-
-    return render_template('student_profile.html', student=student)
-
+    return render_template('student_profile.html', student=student, enrollments=enrollments)
 
 @app.route('/student/new', methods=['GET', 'POST'])
 @login_required
@@ -179,32 +192,33 @@ def student_new():
         first_name = request.form['first_name']
         last_name = request.form['last_name']
         email = request.form['email']
-        program_id = request.form.get('program_id')
+        program_id = request.form.get('program_id') or None
 
-        try:
-            cursor.execute(
-                """
-                INSERT INTO students (student_number, first_name, last_name, email, program_id)
-                VALUES (%s, %s, %s, %s, %s)
-            """,
-                (student_number, first_name, last_name, email, program_id),
-            )
-            conn.commit()
-            flash('Student added successfully!', 'success')
-            return redirect(url_for('students'))
-        except Exception as e:
-            conn.rollback()
-            flash(f'Error adding student: {e}', 'danger')
-        finally:
-            cursor.close()
-            conn.close()
+        # Handle File Upload
+        profile_image = 'default_avatar.png'
+        file = request.files.get('profile_image')
+        if file and file.filename != '' and allowed_file(file.filename):
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            filename = f"{uuid.uuid4().hex}.{ext}"
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            profile_image = filename
 
-    cursor.execute('SELECT * FROM programs')
+        cursor.execute(
+            "INSERT INTO students (student_number, first_name, last_name, email, program_id, profile_image) VALUES (%s, %s, %s, %s, %s, %s)",
+            (student_number, first_name, last_name, email, program_id, profile_image)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        flash('Student added successfully!', 'success')
+        return redirect(url_for('students'))
+
+    cursor.execute("SELECT * FROM programs")
     programs = cursor.fetchall()
     cursor.close()
     conn.close()
     return render_template('student_form.html', programs=programs)
-
 
 @app.route('/student/edit/<int:student_id>', methods=['GET', 'POST'])
 @login_required
