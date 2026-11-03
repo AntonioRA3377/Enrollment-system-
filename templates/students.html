@@ -1,57 +1,82 @@
 {% extends "base.html" %}
 
-{% block title %}Students{% endblock %}
+{% block title %}Student Roster - Lab 15{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-3">
-        <h2>Students</h2>
-        <a href="{{ url_for('student_new') }}" class="btn btn-primary">Register Student</a>
+        <h2>Student Management Roster</h2>
+        <a href="{{ url_for('student_new') }}" class="btn btn-primary">+ Add New Student</a>
     </div>
-    
-    <form method="GET" action="{{ url_for('students') }}" class="mb-3" style="display: flex; gap: 10px;">
-        <input type="text" name="q" value="{{ q }}" placeholder="Name, student number, or email" class="form-control" style="max-width: 300px;">
-        <button type="submit" class="btn btn-primary">Search</button>
+
+    <!-- Filter & Search Form -->
+    <form method="GET" action="{{ url_for('students') }}" class="row g-3 mb-4" style="display: flex; gap: 10px; background: #f8f9fa; padding: 15px; border-radius: 6px;">
+        <div style="flex: 2;">
+            <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name or student #..." style="width: 100%; padding: 8px;">
+        </div>
+        <div style="flex: 1;">
+            <select name="program_id" class="form-select" style="width: 100%; padding: 8px;">
+                <option value="">All Programs</option>
+                {% for p in programs %}
+                <option value="{{ p.program_id }}" {% if selected_program == p.program_id|string %}selected{% endif %}>
+                    {{ p.program_code }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="btn btn-secondary" style="padding: 8px 16px;">Filter</button>
+            <a href="{{ url_for('students') }}" class="btn btn-outline-secondary" style="padding: 8px 12px; text-decoration: none;">Reset</a>
+        </div>
     </form>
 
-    <div class="table-wrap">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Student number</th>
-                    <th>Name</th>
-                    <th>Program</th>
-                    <th>Email</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for student in students %}
-                <tr>
-                    <td>
-                        <a href="{{ url_for('student_profile', student_id=student.student_id) }}" style="text-decoration: none; font-weight: bold; color: #0056b3;">
-                            {{ student.student_number }}
-                        </a>
-                    </td>
-                    <td>
-                        <a href="{{ url_for('student_profile', student_id=student.student_id) }}" style="text-decoration: none; color: #333;">
-                            {{ student.last_name }}, {{ student.first_name }}
-                        </a>
-                    </td>
-                    <td>{{ student.program_code or 'Not assigned' }}</td>
-                    <td>{{ student.email }}</td>
-                    <td>
-                        <a href="{{ url_for('student_profile', student_id=student.student_id) }}" class="btn btn-sm btn-info">View Profile</a>
-                        <a href="{{ url_for('enroll', student_id=student.student_id) }}" class="btn btn-sm btn-primary">Enroll Courses</a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" class="text-center">No students found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Students Table -->
+    <table class="table table-striped" style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+            <tr style="background: #343a40; color: white;">
+                <th style="padding: 10px;">Student #</th>
+                <th style="padding: 10px;">Full Name</th>
+                <th style="padding: 10px;">Email</th>
+                <th style="padding: 10px;">Program</th>
+                <th style="padding: 10px; text-align: center;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in students %}
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 10px;"><strong>{{ s.student_number }}</strong></td>
+                <td style="padding: 10px;">{{ s.first_name }} {{ s.last_name }}</td>
+                <td style="padding: 10px;">{{ s.email }}</td>
+                <td style="padding: 10px;">{{ s.program_code or 'Unassigned' }}</td>
+                <td style="padding: 10px; text-align: center;">
+                    <a href="{{ url_for('student_profile', student_id=s.student_id) }}" class="btn btn-sm btn-info" style="margin-right: 5px; color: #fff; text-decoration: none; padding: 4px 8px; background: #0dcaf0; border-radius: 4px;">View</a>
+                    <a href="{{ url_for('statement_of_account', student_id=s.student_id) }}" class="btn btn-sm btn-secondary" style="color: #fff; text-decoration: none; padding: 4px 8px; background: #6c757d; border-radius: 4px;">SOA</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 20px;">No students match the current criteria.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Navigation Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+        <p style="margin: 0;">Showing Page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong> (Total: {{ total_count }} students)</p>
+        <div style="display: flex; gap: 8px;">
+            {% if page > 1 %}
+            <a href="{{ url_for('students', page=page-1, q=query, program_id=selected_program) }}" class="btn btn-outline-primary" style="padding: 6px 12px; text-decoration: none; border: 1px solid #0d6efd; color: #0d6efd; border-radius: 4px;">&laquo; Previous</a>
+            {% else %}
+            <span style="padding: 6px 12px; border: 1px solid #ccc; color: #aaa; border-radius: 4px; cursor: not-allowed;">&laquo; Previous</span>
+            {% endif %}
+
+            {% if page < total_pages %}
+            <a href="{{ url_for('students', page=page+1, q=query, program_id=selected_program) }}" class="btn btn-outline-primary" style="padding: 6px 12px; text-decoration: none; border: 1px solid #0d6efd; color: #0d6efd; border-radius: 4px;">Next &raquo;</a>
+            {% else %}
+            <span style="padding: 6px 12px; border: 1px solid #ccc; color: #aaa; border-radius: 4px; cursor: not-allowed;">Next &raquo;</span>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

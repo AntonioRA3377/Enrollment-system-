@@ -77,6 +77,8 @@ def dashboard():
 # ---------------------------------------------------------
 # STUDENTS ROUTES
 # ---------------------------------------------------------
+
+
 @app.route('/students')
 @login_required
 def students():
@@ -84,29 +86,59 @@ def students():
     cursor = conn.cursor(dictionary=True)
 
     query = request.args.get('q', '').strip()
-    if query:
-        search_term = f"%{query}%"
-        cursor.execute(
-            """
-            SELECT s.*, p.program_name, p.program_code 
-            FROM students s 
-            LEFT JOIN programs p ON s.program_id = p.program_id
-            WHERE s.first_name LIKE %s OR s.last_name LIKE %s 
-               OR s.student_number LIKE %s OR s.email LIKE %s
-        """,
-            (search_term, search_term, search_term, search_term),
-        )
-    else:
-        cursor.execute("""
-            SELECT s.*, p.program_name, p.program_code 
-            FROM students s 
-            LEFT JOIN programs p ON s.program_id = p.program_id
-        """)
+    program_id = request.args.get('program_id', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 5
+    offset = (page - 1) * per_page
 
+    where_clauses = []
+    params = []
+
+    if query:
+        where_clauses.append("(s.first_name LIKE %s OR s.last_name LIKE %s OR CONCAT(s.first_name, ' ', s.last_name) LIKE %s OR s.student_number LIKE %s OR s.email LIKE %s)")
+        search_term = f"%{query}%"
+        params.extend([search_term, search_term, search_term, search_term, search_term])
+
+    if program_id:
+        where_clauses.append("s.program_id = %s")
+        params.append(program_id)
+
+    where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+
+    count_sql = f"SELECT COUNT(*) AS total FROM students s{where_sql}"
+    cursor.execute(count_sql, tuple(params))
+    total_count = cursor.fetchone()['total']
+
+    data_sql = f"""
+        SELECT s.*, p.program_name, p.program_code 
+        FROM students s 
+        LEFT JOIN programs p ON s.program_id = p.program_id
+        {where_sql}
+        ORDER BY s.student_id DESC
+        LIMIT %s OFFSET %s
+    """
+    params.extend([per_page, offset])
+    cursor.execute(data_sql, tuple(params))
     students_list = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM programs")
+    programs = cursor.fetchall()
+
     cursor.close()
     conn.close()
-    return render_template('students.html', students=students_list, q=query)
+
+    total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+
+    return render_template(
+        'students.html',
+        students=students_list,
+        programs=programs,
+        query=query,
+        selected_program=program_id,
+        page=page,
+        total_pages=total_pages,
+        total_count=total_count
+    )
 
 
 @app.route('/student/<int:student_id>')
