@@ -1,5 +1,7 @@
 import mysql.connector
 from flask import Flask, flash, redirect, render_template, request, url_for
+import uuid
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'super_secret_key'
@@ -406,8 +408,27 @@ def offering_delete(offering_id):
 
 
 # ---------------------------------------------------------
-# LAB 9 & LAB 11: ENROLLMENT & VALIDATION ROUTES
+# LAB 11 & LAB 12: ENROLLMENT VALIDATION & TRANSACTION
 # ---------------------------------------------------------
+@app.route('/enrollments')
+def enrollments():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT e.*, s.student_number, s.first_name, s.last_name,
+               (SELECT COUNT(*) FROM enrollment_items ei WHERE ei.enrollment_id = e.enrollment_id) AS total_courses
+        FROM enrollments e
+        JOIN students s ON e.student_id = s.student_id
+        ORDER BY e.enrollment_date DESC
+    """)
+    enrollments_list = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+    return render_template('enrollments.html', enrollments=enrollments_list)
+
+
 @app.route('/enroll/<int:student_id>', methods=['GET', 'POST'])
 def enroll(student_id):
     conn = get_db_connection()
@@ -416,13 +437,13 @@ def enroll(student_id):
     if request.method == 'POST':
         selected_offerings = request.form.getlist('offering_ids')
 
-        # 1. Validation: At least one course selected
         if not selected_offerings:
             flash('Please select at least one course to enroll.', 'warning')
             return redirect(url_for('enroll', student_id=student_id))
 
         try:
-            # 2. Validation: Check section capacities & duplicate enrollments
+            conn.start_transaction()
+
             for offering_id in selected_offerings:
                 cursor.execute("""
                     SELECT co.capacity, co.section_name, c.course_code,
@@ -430,10 +451,12 @@ def enroll(student_id):
                     FROM course_offerings co
                     JOIN courses c ON co.course_id = c.course_id
                     WHERE co.offering_id = %s
+                    FOR UPDATE
                 """, (offering_id,))
                 offering_info = cursor.fetchone()
 
                 if offering_info and offering_info['enrolled_count'] >= offering_info['capacity']:
+                    conn.rollback()
                     flash(f"Cannot enroll: Course {offering_info['course_code']} ({offering_info['section_name']}) is already full!", "danger")
                     return redirect(url_for('enroll', student_id=student_id))
 
@@ -446,11 +469,20 @@ def enroll(student_id):
                 already_enrolled = cursor.fetchone()
 
                 if already_enrolled:
+                    conn.rollback()
                     flash(f"Validation Error: Student is already enrolled in {offering_info['course_code']} ({offering_info['section_name']}).", "danger")
                     return redirect(url_for('enroll', student_id=student_id))
 
-            # 3. Create Enrollment
-            cursor.execute("INSERT INTO enrollments (student_id) VALUES (%s)", (student_id,))
+            # Lab 12 Transaction: Generate Reference No. and Record Enrollment
+            date_str = datetime.now().strftime("%Y%m%d")
+            random_suffix = str(uuid.uuid4().hex[:4]).upper()
+            enrollment_ref = f"ENR-{date_str}-{random_suffix}"
+
+            cursor.execute("""
+                INSERT INTO enrollments (student_id, enrollment_ref, status) 
+                VALUES (%s, %s, %s)
+            """, (student_id, enrollment_ref, 'Pending Assessment'))
+
             enrollment_id = cursor.lastrowid
 
             for offering_id in selected_offerings:
@@ -460,12 +492,12 @@ def enroll(student_id):
                 """, (enrollment_id, offering_id))
 
             conn.commit()
-            flash('Enrollment successfully validated and created!', 'success')
+            flash(f'Enrollment transaction {enrollment_ref} processed successfully!', 'success')
             return redirect(url_for('assessment', enrollment_id=enrollment_id))
 
         except Exception as e:
             conn.rollback()
-            flash(f'Enrollment validation failed: {e}', 'danger')
+            flash(f'Enrollment transaction failed: {e}', 'danger')
         finally:
             cursor.close()
             conn.close()
