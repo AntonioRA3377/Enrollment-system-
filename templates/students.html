@@ -1,49 +1,57 @@
 {% extends "base.html" %}
+
 {% block title %}Students{% endblock %}
 
 {% block content %}
-  <h1>Students</h1>
-
-  <form class="search mb-3" method="get" action="{{ url_for('students') }}">
-    <label for="q" class="hint" style="margin:0; align-self:center;">Search</label>
-    <input id="q" name="q" value="{{ q or '' }}" placeholder="Name, student number, or email">
-    <button type="submit">Search</button>
-  </form>
-
-  {% if students %}
-    <div class="table-wrap">
-      <table class="table table-bordered table-striped">
-        <thead>
-          <tr>
-            <th scope="col">Student number</th>
-            <th scope="col">Name</th>
-            <th scope="col">Program</th>
-            <th scope="col">Year</th>
-            <th scope="col">Email</th>
-            <th scope="col"><span class="hint">Action</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for s in students %}
-            <tr>
-              <td>{{ s.student_number }}</td>
-              <td>{{ s.last_name }}, {{ s.first_name }}</td>
-              <td>{{ s.program_code or s.program_name or 'Not assigned' }}</td>
-              <td>{{ s.year_level or '1' }}</td>
-              <td>{{ s.email }}</td>
-              <td>
-                <a href="{{ url_for('enroll', student_id=s.student_id) }}" class="btn btn-sm btn-primary">
-                  Enroll Courses
-                </a>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<div class="container mt-4">
+    <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-3">
+        <h2>Students</h2>
+        <a href="{{ url_for('student_new') }}" class="btn btn-primary">Register Student</a>
     </div>
-  {% elif q %}
-    <p>No students match "{{ q }}". Try a different name, number, or email.</p>
-  {% else %}
-    <p>No students are registered yet. <a href="{{ url_for('student_new') }}">Register the first student.</a></p>
-  {% endif %}
+    
+    <form method="GET" action="{{ url_for('students') }}" class="mb-3" style="display: flex; gap: 10px;">
+        <input type="text" name="q" value="{{ q }}" placeholder="Name, student number, or email" class="form-control" style="max-width: 300px;">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Student number</th>
+                    <th>Name</th>
+                    <th>Program</th>
+                    <th>Email</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('student_profile', student_id=student.student_id) }}" style="text-decoration: none; font-weight: bold; color: #0056b3;">
+                            {{ student.student_number }}
+                        </a>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('student_profile', student_id=student.student_id) }}" style="text-decoration: none; color: #333;">
+                            {{ student.last_name }}, {{ student.first_name }}
+                        </a>
+                    </td>
+                    <td>{{ student.program_code or 'Not assigned' }}</td>
+                    <td>{{ student.email }}</td>
+                    <td>
+                        <a href="{{ url_for('student_profile', student_id=student.student_id) }}" class="btn btn-sm btn-info">View Profile</a>
+                        <a href="{{ url_for('enroll', student_id=student.student_id) }}" class="btn btn-sm btn-primary">Enroll Courses</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center">No students found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}

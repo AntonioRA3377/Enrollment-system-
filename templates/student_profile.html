@@ -1,48 +1,33 @@
 {% extends "base.html" %}
 
+{% block title %}Student Profile - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container mt-4" style="max-width: 700px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-3">
         <h2>Student Profile</h2>
         <div>
-            <a href="{{ url_for('students') }}" class="btn btn-secondary me-2">Back to List</a>
-            <a href="{{ url_for('enroll', student_id=student.student_id) }}" class="btn btn-success">Enroll Courses</a>
+            <a href="{{ url_for('student_edit', student_id=student.student_id) }}" class="btn btn-warning">Edit Profile</a>
+            <a href="{{ url_for('students') }}" class="btn btn-secondary">Back to List</a>
         </div>
     </div>
+    <hr>
 
-    {% if updated %}
-        <div class="alert alert-success">Profile updated successfully!</div>
-    {% endif %}
+    <div class="profile-details mb-4">
+        <p><strong>Student ID:</strong> {{ student.student_id }}</p>
+        <p><strong>Student Number:</strong> {{ student.student_number }}</p>
+        <p><strong>Full Name:</strong> {{ student.first_name }} {{ student.last_name }}</p>
+        <p><strong>Email Address:</strong> {{ student.email }}</p>
+        <p><strong>Degree Program:</strong> {{ student.program_code or 'N/A' }} - {{ student.program_name or 'Unassigned' }}</p>
+    </div>
 
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <strong>{{ student.first_name }} {{ student.middle_name or '' }} {{ student.last_name }}</strong>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6 mb-2">
-                    <strong>Student Number:</strong> {{ student.student_number }}
-                </div>
-                <div class="col-md-6 mb-2">
-                    <strong>Degree Program:</strong> {{ student.program_code or 'Not Assigned' }} {{ '- ' + student.program_name if student.program_name else '' }}
-                </div>
-                <div class="col-md-6 mb-2">
-                    <strong>Year Level:</strong> {{ student.year_level or 'N/A' }}
-                </div>
-                <div class="col-md-6 mb-2">
-                    <strong>Email:</strong> {{ student.email }}
-                </div>
-                <div class="col-md-6 mb-2">
-                    <strong>Birthdate:</strong> {{ student.birthdate or 'N/A' }}
-                </div>
-                <div class="col-md-6 mb-2">
-                    <strong>Contact Number:</strong> {{ student.contact_number or 'N/A' }}
-                </div>
-                <div class="col-12 mb-2">
-                    <strong>Address:</strong> {{ student.address or 'N/A' }}
-                </div>
-            </div>
-        </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ url_for('enroll', student_id=student.student_id) }}" class="btn btn-primary">
+            Enroll Courses
+        </a>
+        <a href="{{ url_for('statement_of_account', student_id=student.student_id) }}" class="btn btn-info">
+            View Statement of Account
+        </a>
     </div>
 </div>
 {% endblock %}

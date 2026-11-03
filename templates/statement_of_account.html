@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Statement of Account - {{ student.first_name }} {{ student.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-3">
+        <div>
+            <h2 style="margin: 0; color: #333;">STATEMENT OF ACCOUNT</h2>
+            <p style="margin: 4px 0 0; color: #666;">Academic Year 2026-2027</p>
+        </div>
+        <button onclick="window.print()" class="btn btn-secondary">Print Statement</button>
+    </div>
+    <hr>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;" class="mb-4">
+        <div>
+            <p><strong>Student Name:</strong> {{ student.first_name }} {{ student.last_name }}</p>
+            <p><strong>Student No.:</strong> {{ student.student_number }}</p>
+            <p><strong>Email:</strong> {{ student.email }}</p>
+        </div>
+        <div>
+            <p><strong>Academic Program:</strong> {{ student.program_code or 'N/A' }} - {{ student.program_name or 'N/A' }}</p>
+            <p><strong>Enrollment Ref #:</strong> {{ enrollment.enrollment_ref if enrollment else 'N/A' }}</p>
+            <p><strong>Status:</strong> 
+                <span class="badge {% if balance_due == 0 and enrollment %}success{% else %}warning{% endif %}">
+                    {{ enrollment.status if enrollment else 'Not Enrolled' }}
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <h4>Enrolled Courses Summary</h4>
+    <table class="table mb-4">
+        <thead>
+            <tr>
+                <th>Course Code</th>
+                <th>Course Title</th>
+                <th>Section</th>
+                <th>Schedule</th>
+                <th style="text-align: right;">Units</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for course in courses %}
+            <tr>
+                <td><strong>{{ course.course_code }}</strong></td>
+                <td>{{ course.course_title }}</td>
+                <td>{{ course.section_name }}</td>
+                <td>{{ course.schedule }}</td>
+                <td style="text-align: right;">{{ course.units }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" style="text-align: center;">No enrolled courses recorded.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="display: flex; justify-content: flex-end;" class="mb-4">
+        <div style="width: 340px;">
+            <div style="display: flex; justify-content: space-between; padding: 4px 0;">
+                <span>Total Units Enrolled:</span>
+                <strong>{{ total_units }} units</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 4px 0;">
+                <span>Tuition Fee (₱500 / unit):</span>
+                <span>₱{{ "{:,.2f}".format(tuition_fee) }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 4px 0;">
+                <span>Registration / Misc Fee:</span>
+                <span>₱{{ "{:,.2f}".format(miscellaneous_fee) }}</span>
+            </div>
+            <hr>
+            <div style="display: flex; justify-content: space-between; padding: 4px 0;">
+                <strong>Grand Total Assessed:</strong>
+                <strong>₱{{ "{:,.2f}".format(grand_total) }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #28a745;">
+                <span>Total Payments Received:</span>
+                <span>- ₱{{ "{:,.2f}".format(total_paid) }}</span>
+            </div>
+            <hr>
+            <div style="display: flex; justify-content: space-between; padding: 8px; font-size: 1.15rem; font-weight: bold; background: #f8f9fa; border-radius: 4px;">
+                <span>Balance Due:</span>
+                <span style="color: {% if balance_due > 0 %}#dc3545{% else %}#28a745{% endif %};">
+                    ₱{{ "{:,.2f}".format(balance_due) }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4" style="display: flex; justify-content: space-between;">
+        <a href="{{ url_for('student_profile', student_id=student.student_id) }}" class="btn btn-secondary">Back to Profile</a>
+        {% if balance_due > 0 and enrollment %}
+        <a href="{{ url_for('payment_new', enrollment_id=enrollment.enrollment_id) }}" class="btn btn-success">Settle Balance</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
