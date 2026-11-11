@@ -119,8 +119,8 @@
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
       <a href="{{ url_for('students') }}">Students</a>
       <a href="{{ url_for('student_new') }}">Register Student</a>
-      <a href="{{ url_for('courses') }}">Courses</a>
-      <a href="{{ url_for('course_offerings') }}">Course Offerings</a>
+      <a href="{{ '/courses' }}">Courses</a>
+      <a href="{{ '/course_offerings' }}">Course Offerings</a>
     
     {% if session.get('user_id') %}
     <div style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto;">

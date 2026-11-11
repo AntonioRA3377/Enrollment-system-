@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lab 25 - Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Administrator Dashboard (Lab 25)</h2>
+        <div>
+            <span class="badge bg-danger me-2">Role: Admin</span>
+            <a href="/logout" class="btn btn-outline-danger btn-sm">Logout</a>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase text-white-50">Total Students</h6>
+                    <h2 class="fw-bold mb-0">{{ total_students }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase text-white-50">Courses Catalog</h6>
+                    <h2 class="fw-bold mb-0">{{ total_courses }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase text-dark-50">Active Offerings</h6>
+                    <h2 class="fw-bold mb-0">{{ total_offerings }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-uppercase text-white-50">Total Enrollments</h6>
+                    <h2 class="fw-bold mb-0">{{ total_enrollments }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h4 class="mb-3">Management & Reports</h4>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Student Records</h5>
+                    <p class="card-text text-muted">Manage student profiles and view details.</p>
+                    <a href="/students" class="btn btn-primary">Go to Students</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">System Enrollment Summary</h5>
+                    <p class="card-text text-muted">Check capacity breakdown and course status.</p>
+                    <a href="/reports/enrollment_summary" class="btn btn-outline-primary">View Summary</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Student Enrollment Reports</h5>
+                    <p class="card-text text-muted">Generate individual student course load reports.</p>
+                    <a href="/reports/student_enrollment" class="btn btn-outline-primary">View Reports</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

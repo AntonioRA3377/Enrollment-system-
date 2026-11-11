@@ -1,102 +1,132 @@
-{% extends "base.html" %}
-
-{% block title %}Statement of Account - {{ student.first_name }} {{ student.last_name }}{% endblock %}
-
-{% block content %}
-<div class="container mt-4" style="max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-    
-    <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-3">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Statement of Account</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Statement of Account (SOA)</h2>
         <div>
-            <h2 style="margin: 0; color: #333;">STATEMENT OF ACCOUNT</h2>
-            <p style="margin: 4px 0 0; color: #666;">Academic Year 2026-2027</p>
-        </div>
-        <button onclick="window.print()" class="btn btn-secondary">Print Statement</button>
-    </div>
-    <hr>
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;" class="mb-4">
-        <div>
-            <p><strong>Student Name:</strong> {{ student.first_name }} {{ student.last_name }}</p>
-            <p><strong>Student No.:</strong> {{ student.student_number }}</p>
-            <p><strong>Email:</strong> {{ student.email }}</p>
-        </div>
-        <div>
-            <p><strong>Academic Program:</strong> {{ student.program_code or 'N/A' }} - {{ student.program_name or 'N/A' }}</p>
-            <p><strong>Enrollment Ref #:</strong> {{ enrollment.enrollment_ref if enrollment else 'N/A' }}</p>
-            <p><strong>Status:</strong> 
-                <span class="badge {% if balance_due == 0 and enrollment %}success{% else %}warning{% endif %}">
-                    {{ enrollment.status if enrollment else 'Not Enrolled' }}
-                </span>
-            </p>
+            <a href="/student/dashboard" class="btn btn-outline-secondary me-2">Dashboard</a>
+            <button onclick="window.print()" class="btn btn-primary">Print SOA</button>
         </div>
     </div>
 
-    <h4>Enrolled Courses Summary</h4>
-    <table class="table mb-4">
-        <thead>
-            <tr>
-                <th>Course Code</th>
-                <th>Course Title</th>
-                <th>Section</th>
-                <th>Schedule</th>
-                <th style="text-align: right;">Units</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for course in courses %}
-            <tr>
-                <td><strong>{{ course.course_code }}</strong></td>
-                <td>{{ course.course_title }}</td>
-                <td>{{ course.section_name }}</td>
-                <td>{{ course.schedule }}</td>
-                <td style="text-align: right;">{{ course.units }}</td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="5" style="text-align: center;">No enrolled courses recorded.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <div style="display: flex; justify-content: flex-end;" class="mb-4">
-        <div style="width: 340px;">
-            <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                <span>Total Units Enrolled:</span>
-                <strong>{{ total_units }} units</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                <span>Tuition Fee (₱500 / unit):</span>
-                <span>₱{{ "{:,.2f}".format(tuition_fee | default(0)) }}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                <span>Registration / Misc Fee:</span>
-                <span>₱{{ "{:,.2f}".format(miscellaneous_fee | default(0)) }}</span>
-            </div>
-            <hr>
-            <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                <strong>Grand Total Assessed:</strong>
-                <strong>₱{{ "{:,.2f}".format(grand_total | default(0)) }}</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 4px 0; color: #28a745;">
-                <span>Total Payments Received:</span>
-                <span>- ₱{{ "{:,.2f}".format(total_paid | default(0)) }}</span>
-            </div>
-            <hr>
-            <div style="display: flex; justify-content: space-between; padding: 8px; font-size: 1.15rem; font-weight: bold; background: #f8f9fa; border-radius: 4px;">
-                <span>Balance Due:</span>
-                <span style="color: {% if balance_due > 0 %}#dc3545{% else %}#28a745{% endif %};">
-                    ₱{{ "{:,.2f}".format(balance_due | default(0)) }}
-                </span>
+    {% if student %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="fw-bold mb-1">{{ student.first_name }} {{ student.last_name }}</h5>
+                    <p class="text-muted mb-1">Student ID: #{{ student.student_id }}</p>
+                    <p class="text-muted mb-0">Program: {{ student.program_name or student.program_code or 'N/A' }}</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="mb-1"><strong>Status:</strong> Enrolled</p>
+                    <p class="mb-0 text-muted">Enrollment Date: {{ enrollment.enrollment_date if enrollment else 'N/A' }}</p>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="mt-4" style="display: flex; justify-content: space-between;">
-        <a href="{{ url_for('student_profile', student_id=student.student_id) }}" class="btn btn-secondary">Back to Profile</a>
-        {% if balance_due > 0 and enrollment %}
-        <a href="{{ url_for('payment_new', enrollment_id=enrollment.enrollment_id) }}" class="btn btn-success">Settle Balance</a>
-        {% endif %}
+    <div class="row g-4 mb-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold py-3">Enrolled Courses</div>
+                <div class="card-body">
+                    <table class="table table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Course Code</th>
+                                <th>Course Title</th>
+                                <th class="text-center">Units</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in courses %}
+                            <tr>
+                                <td><strong>{{ c.course_code }}</strong></td>
+                                <td>{{ c.course_title }}</td>
+                                <td class="text-center">{{ c.units }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No course load recorded.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-bold py-3">Assessment Summary</div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Units:</span>
+                        <strong>{{ total_units }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Tuition Fee (₱500/unit):</span>
+                        <span>₱{{ "%.2f"|format(tuition_fee) }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Misc. Fees:</span>
+                        <span>₱{{ "%.2f"|format(miscellaneous_fee) }}</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-2 fs-5 fw-bold">
+                        <span>Total Amount:</span>
+                        <span>₱{{ "%.2f"|format(grand_total) }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 text-success">
+                        <span>Total Paid:</span>
+                        <span>₱{{ "%.2f"|format(total_paid) }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-0 text-danger fs-5 fw-bold">
+                        <span>Balance Due:</span>
+                        <span>₱{{ "%.2f"|format(balance_due) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white fw-bold py-3">Payment History</div>
+        <div class="card-body">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Payment ID</th>
+                        <th>Amount Paid</th>
+                        <th>Payment Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in payments %}
+                    <tr>
+                        <td>#{{ p.payment_id }}</td>
+                        <td class="text-success fw-bold">₱{{ "%.2f"|format(p.amount) }}</td>
+                        <td>{{ p.payment_date }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">No payment records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-danger">Student record not found.</div>
+    {% endif %}
 </div>
-{% endblock %}
+</body>
+</html>

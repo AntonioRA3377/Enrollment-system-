@@ -205,285 +205,23 @@ def student_profile(student_id):
     return render_template('student_profile.html', student=student, enrolled_courses=enrolled_courses)
 
 
-@app.route('/statement_of_account/<int:student_id>')
-@login_required
-def statement_of_account(student_id):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    cursor.execute("SELECT * FROM students WHERE student_id = %s", (student_id,))
-    student = cursor.fetchone()
-
-    if not student:
-        flash('Student not found.', 'danger')
-        return redirect(url_for('students'))
-
-    cursor.execute("""SELECT e.*, c.course_code, c.course_code AS course_name, c.units
-        FROM enrollments e
-        JOIN course_offerings co ON e.offering_id = co.offering_id
-        JOIN courses c ON co.course_id = c.course_id
-        WHERE e.student_id = %s""", (student_id,))
-    enrolled_courses = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    total_units = sum(float(item.get('units') or 0) for item in enrolled_courses)
-    rate_per_unit = 1500.00
-    tuition_fee = total_units * rate_per_unit
-    misc_fee = 2500.00 if total_units > 0 else 0.00
-    total_amount = tuition_fee + misc_fee
-    amount_paid = 0.00
-    balance_due = total_amount - amount_paid
-
-    return render_template(
-        'statement_of_account.html',
-        student=student,
-        enrolled_courses=enrolled_courses,
-        total_units=total_units,
-        rate_per_unit=rate_per_unit,
-        tuition_fee=tuition_fee,
-        misc_fee=misc_fee,
-        miscellaneous_fee=misc_fee,
-        total_amount=total_amount,
-        total_fee=total_amount,
-        grand_total=total_amount,
-        amount_paid=amount_paid,
-        total_paid=amount_paid,
-        balance_due=balance_due
-    )
 
 
-@app.route('/statement_of_account/<int:student_id>/pdf')
-@login_required
-def statement_of_account_pdf(student_id):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    cursor.execute("SELECT s.*, p.program_name, p.program_code FROM students s LEFT JOIN programs p ON s.program_id = p.program_id WHERE s.student_id = %s", (student_id,))
-    student = cursor.fetchone()
-
-    if not student:
-        cursor.close()
-        conn.close()
-        flash('Student not found.', 'danger')
-        return redirect(url_for('students'))
-
-    cursor.execute("""
-        SELECT e.*, co.section, c.course_code, c.units, c.tuition_fee
-        FROM enrollments e
-        JOIN courses c ON e.course_id = c.course_id
-        JOIN courses c ON co.course_id = c.course_id
-        WHERE e.student_id = %s
-    """, (student_id,))
-    enrolled_courses = cursor.fetchall()
-
-    total_units = sum(c['units'] for c in enrolled_courses) if enrolled_courses else 0
-    tuition_fee = sum(c['tuition_fee'] for c in enrolled_courses) if enrolled_courses else 0.0
-    miscellaneous_fee = 1500.00 if enrolled_courses else 0.0
-    grand_total = tuition_fee + miscellaneous_fee
-
-    cursor.execute("""
-        SELECT p.*, e.enrollment_id 
-        FROM payments p
-        JOIN enrollments e ON p.enrollment_id = e.enrollment_id
-        WHERE e.student_id = %s
-        ORDER BY p.payment_id DESC
-    """, (student_id,))
-    payments_history = cursor.fetchall()
-
-    total_paid = sum(p['amount_paid'] for p in payments_history) if payments_history else 0.0
-    balance_due = grand_total - total_paid
-
-    cursor.close()
-    conn.close()
-
-    rendered_html = render_template(
-        'statement_of_account_pdf.html',
-        student=student,
-        courses=enrolled_courses,
-        total_units=total_units,
-        tuition_fee=tuition_fee,
-        miscellaneous_fee=miscellaneous_fee,
-        grand_total=grand_total,
-        total_paid=total_paid,
-        balance_due=balance_due,
-        payments=payments_history,
-        today=datetime.now().strftime('%B %d, %Y')
-    )
-
-    pdf_stream = io.BytesIO()
-    pisa_status = pisa.CreatePDF(rendered_html, dest=pdf_stream)
-
-    if pisa_status.err:
-        flash('Error generating PDF report.', 'danger')
-        return redirect(url_for('statement_of_account', student_id=student_id))
-
-    pdf_stream.seek(0)
-    filename = f"SOA_{student['student_number']}.pdf"
-    return send_file(pdf_stream, download_name=filename, as_attachment=True, mimetype='application/pdf')
-
-@app.route('/students/export/csv')
-@login_required
-def export_students_csv():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    cursor.execute("""
-        SELECT s.student_number, s.first_name, s.last_name, s.email, p.program_code 
-        FROM students s 
-        LEFT JOIN programs p ON s.program_id = p.program_id
-        ORDER BY s.student_id ASC
-    """)
-    students = cursor.fetchall()
-
-    cursor.close()
-    conn.close()
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Student Number', 'First Name', 'Last Name', 'Email', 'Program Code'])
-
-    for s in students:
-        writer.writerow([s['student_number'], s['first_name'], s['last_name'], s['email'], s['program_code'] or 'Unassigned'])
-
-    output.seek(0)
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment;filename=students_roster.csv'}
-    )
-
-@app.route('/students/import/csv', methods=['POST'])
-@login_required
-def import_students_csv():
-    file = request.files.get('file')
-    if not file or not file.filename.endswith('.csv'):
-        flash('Please upload a valid CSV file.', 'danger')
-        return redirect(url_for('students'))
-
-    stream = io.StringIO(file.stream.read().decode('utf-8-sig'), newline=None)
-    csv_reader = csv.DictReader(stream)
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    cursor.execute("SELECT program_id, LOWER(program_code) AS code FROM programs")
-    prog_map = {row['code']: row['program_id'] for row in cursor.fetchall()}
-
-    imported_count = 0
-    for row in csv_reader:
-        clean_row = {re.sub(r'[^a-z0-9]', '', str(k).lower()): str(v).strip() for k, v in row.items() if k}
-
-        student_num = clean_row.get('studentnumber') or clean_row.get('studentnum') or clean_row.get('studentno')
-        first_name = clean_row.get('firstname') or clean_row.get('first')
-        last_name = clean_row.get('lastname') or clean_row.get('last')
-        email = clean_row.get('email')
-        code = (clean_row.get('programcode') or clean_row.get('program') or '').lower()
-
-        if student_num and first_name and last_name and email:
-            p_id = prog_map.get(code, None)
-            try:
-                cursor.execute(
-                    "INSERT INTO students (student_number, first_name, last_name, email, program_id, profile_image) VALUES (%s, %s, %s, %s, %s, 'default_avatar.png')",
-                    (student_num, first_name, last_name, email, p_id)
-                )
-                imported_count += 1
-            except Exception:
-                continue
-
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-    flash(f'Successfully imported {imported_count} students!', 'success' if imported_count > 0 else 'warning')
-    return redirect(url_for('students'))
-
-
-
-# ---------------------------------------------------------
-# SIDEBAR / NAVIGATION ENDPOINT STUBS
-# ---------------------------------------------------------
-
-
-
-
-
-# ---------------------------------------------------------
-# NAVIGATION ENDPOINT STUBS (UNIQUE)
-# ---------------------------------------------------------
-
-@app.route('/courses')
-@login_required
-def courses():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM courses")
-    courses_list = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return render_template('courses.html', courses=courses_list) if os.path.exists('templates/courses.html') else redirect(url_for('students'))
-
-
-
-
-
-
-@app.route('/course/edit/<int:course_id>', methods=['GET', 'POST'])
-@login_required
-def course_edit(course_id):
-    if request.method == 'POST':
-        flash('Course update feature ready.', 'info')
-        return redirect(url_for('courses'))
-    return redirect(url_for('courses'))
-
-
-
-@app.route('/course/delete/<int:course_id>', methods=['POST'])
-@login_required
-def course_delete(course_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("DELETE FROM courses WHERE course_id = %s", (course_id,))
-        conn.commit()
-        log_action('DELETE_COURSE', f"Deleted course ID {course_id}")
-        flash('Course deleted successfully.', 'success')
-    except Exception as e:
-        conn.rollback()
-        flash(f'Cannot delete course: {e}', 'danger')
-    finally:
-        cursor.close()
-        conn.close()
-    return redirect(url_for('courses'))
-
-
-
-
-
-
-@app.route('/course_offerings')
-@app.route('/offerings')
-@login_required
-def course_offerings():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT co.*, c.course_code, c.units 
-        FROM course_offerings co 
-        JOIN courses c ON co.course_id = c.course_id
-        ORDER BY co.offering_id DESC
-    """)
-    offerings_list = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return render_template('course_offerings.html', offerings=offerings_list)
-
-
+# ----------------------------------------------------
+# Dashboards & Statement of Account (Labs 24-25 & SOA)
+# ----------------------------------------------------
 
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    role = session.get('role', 'admin')
+    if role == 'student':
+        return redirect(url_for('student_dashboard'))
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/dashboard')
+@login_required
+def admin_dashboard():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
@@ -493,167 +231,482 @@ def dashboard():
     cursor.execute("SELECT COUNT(*) AS total FROM courses")
     total_courses = cursor.fetchone()['total']
 
+    cursor.execute("SELECT COUNT(*) AS total FROM course_offerings")
+    total_offerings = cursor.fetchone()['total']
+
     cursor.execute("SELECT COUNT(*) AS total FROM enrollments")
     total_enrollments = cursor.fetchone()['total']
 
-    cursor.execute("SELECT COUNT(*) AS total FROM programs")
-    total_programs = cursor.fetchone()['total']
+    cursor.close()
+    conn.close()
 
-    cursor.execute("SELECT * FROM audit_logs ORDER BY log_id DESC LIMIT 5")
-    recent_logs = cursor.fetchall()
+    return render_template(
+        'admin_dashboard.html',
+        total_students=total_students,
+        total_courses=total_courses,
+        total_offerings=total_offerings,
+        total_enrollments=total_enrollments
+    )
+
+@app.route('/student/dashboard')
+@login_required
+def student_dashboard():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    user_id = session.get('user_id')
+    student_id = session.get('student_id')
+
+    if not student_id and user_id:
+        cursor.execute("SELECT student_id FROM users WHERE user_id = %s", (user_id,))
+        u = cursor.fetchone()
+        if u and u.get('student_id'):
+            student_id = u['student_id']
+
+    student = None
+    enrolled_courses = []
+
+    if student_id:
+        cursor.execute("SELECT * FROM students WHERE student_id = %s", (student_id,))
+        student = cursor.fetchone()
+
+        cursor.execute("SHOW COLUMNS FROM courses")
+        c_cols = [c['Field'] for c in cursor.fetchall()]
+        title_col = 'course_title' if 'course_title' in c_cols else ('course_name' if 'course_name' in c_cols else 'title')
+
+        cursor.execute(f"""
+            SELECT e.enrollment_id, c.course_code, c.{title_col} AS course_title,
+                   e.enrollment_date
+            FROM enrollments e
+            JOIN course_offerings co ON e.offering_id = co.offering_id
+            JOIN courses c ON co.course_id = c.course_id
+            WHERE e.student_id = %s
+        """, (student_id,))
+        enrolled_courses = cursor.fetchall()
+    else:
+        cursor.execute("SELECT * FROM students LIMIT 1")
+        student = cursor.fetchone()
+        if student:
+            student_id = student['student_id']
+            cursor.execute("SHOW COLUMNS FROM courses")
+            c_cols = [c['Field'] for c in cursor.fetchall()]
+            title_col = 'course_title' if 'course_title' in c_cols else ('course_name' if 'course_name' in c_cols else 'title')
+
+            cursor.execute(f"""
+                SELECT e.enrollment_id, c.course_code, c.{title_col} AS course_title,
+                       e.enrollment_date
+                FROM enrollments e
+                JOIN course_offerings co ON e.offering_id = co.offering_id
+                JOIN courses c ON co.course_id = c.course_id
+                WHERE e.student_id = %s
+            """, (student_id,))
+            enrolled_courses = cursor.fetchall()
 
     cursor.close()
     conn.close()
 
     return render_template(
-        'dashboard.html',
-        total_students=total_students,
-        total_courses=total_courses,
-        total_enrollments=total_enrollments,
-        total_programs=total_programs,
-        recent_logs=recent_logs
+        'student_dashboard.html',
+        student=student,
+        enrolled_courses=enrolled_courses
     )
 
 
 
-# ---------------------------------------------------------
-# LAB 20: STUDENT ENROLLMENT ENGINE
-# ---------------------------------------------------------
-
-
-
-
-
-
-
-
-@app.route('/drop_enrollment/<int:enrollment_id>/<int:student_id>', methods=['POST'])
+@app.route('/student/<int:student_id>/soa')
+@app.route('/statement_of_account/<int:student_id>')
 @login_required
-def drop_enrollment(enrollment_id, student_id):
+def statement_of_account(student_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT s.*, p.program_name, p.program_code 
+            FROM students s 
+            LEFT JOIN programs p ON s.program_id = p.program_id 
+            WHERE s.student_id = %s
+        """, (student_id,))
+        student = cursor.fetchone()
+    except Exception:
+        cursor.execute("SELECT * FROM students WHERE student_id = %s", (student_id,))
+        student = cursor.fetchone()
+
+    if not student:
+        cursor.close()
+        conn.close()
+        flash('Student record not found.', 'danger')
+        return redirect(url_for('students'))
+
+    cursor.execute("""
+        SELECT * FROM enrollments 
+        WHERE student_id = %s 
+        ORDER BY enrollment_id DESC LIMIT 1
+    """, (student_id,))
+    enrollment = cursor.fetchone()
+
+    enrolled_courses = []
+    total_units = 0
+    tuition_fee = 0
+    miscellaneous_fee = 0
+    grand_total = 0
+    total_paid = 0
+    balance_due = 0
+
+    if enrollment:
+        try:
+            cursor.execute("""
+                SELECT co.*, c.course_code, 
+                       COALESCE(c.course_title, c.course_code) AS course_title,
+                       COALESCE(c.units, 3) AS units 
+                FROM enrollment_items ei 
+                JOIN course_offerings co ON ei.offering_id = co.offering_id 
+                JOIN courses c ON co.course_id = c.course_id 
+                WHERE ei.enrollment_id = %s
+            """, (enrollment['enrollment_id'],))
+            enrolled_courses = cursor.fetchall()
+        except Exception:
+            cursor.execute("""
+                SELECT co.*, c.course_code, 
+                       COALESCE(c.course_title, c.course_code) AS course_title,
+                       COALESCE(c.units, 3) AS units 
+                FROM enrollments e 
+                JOIN course_offerings co ON e.offering_id = co.offering_id 
+                JOIN courses c ON co.course_id = c.course_id 
+                WHERE e.enrollment_id = %s
+            """, (enrollment['enrollment_id'],))
+            enrolled_courses = cursor.fetchall()
+
+        total_units = sum(item.get('units', 3) or 3 for item in enrolled_courses)
+        tuition_fee = total_units * 500
+        miscellaneous_fee = 1500
+        grand_total = tuition_fee + miscellaneous_fee
+
+        try:
+            cursor.execute("""
+                SELECT IFNULL(SUM(amount), 0) AS total_paid 
+                FROM payments 
+                WHERE enrollment_id = %s
+            """, (enrollment['enrollment_id'],))
+            res = cursor.fetchone()
+            total_paid = res['total_paid'] if res else 0
+        except Exception:
+            total_paid = 0
+
+        balance_due = grand_total - total_paid
+
+    payments_history = []
+    try:
+        cursor.execute("""
+            SELECT p.* 
+            FROM payments p 
+            JOIN enrollments e ON p.enrollment_id = e.enrollment_id 
+            WHERE e.student_id = %s 
+            ORDER BY p.payment_id DESC
+        """, (student_id,))
+        payments_history = cursor.fetchall()
+    except Exception:
+        payments_history = []
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        'statement_of_account.html',
+        student=student,
+        enrollment=enrollment,
+        courses=enrolled_courses,
+        total_units=total_units,
+        tuition_fee=tuition_fee,
+        miscellaneous_fee=miscellaneous_fee,
+        grand_total=grand_total,
+        total_paid=total_paid,
+        balance_due=balance_due,
+        payments=payments_history
+    )
+
+
+
+
+@app.route('/courses', endpoint='courses')
+@login_required
+def courses():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM courses")
+    courses_list = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return render_template('courses.html', courses=courses_list)
+
+
+
+
+@app.route('/course_offerings', endpoint='course_offerings')
+@app.route('/offerings')
+@login_required
+def course_offerings():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("DELETE FROM enrollments WHERE enrollment_id = %s", (enrollment_id,))
-        conn.commit()
-        flash('Course enrollment successfully dropped.', 'success')
-    except Exception as err:
-        conn.rollback()
-        flash(f'Failed to drop course: {err}', 'danger')
-    finally:
-        cursor.close()
-        conn.close()
-    return redirect(url_for('student_enrollment', student_id=student_id))
+        cursor.execute("""
+            SELECT co.*, c.course_code, COALESCE(c.course_title, c.course_code) AS course_title 
+            FROM course_offerings co 
+            JOIN courses c ON co.course_id = c.course_id
+        """)
+        offerings = cursor.fetchall()
+    except Exception:
+        offerings = []
+    cursor.close()
+    conn.close()
+    return render_template('course_offerings.html', offerings=offerings)
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@app.route('/student_enrollment/<int:student_id>', methods=['GET', 'POST'], endpoint='student_enrollment')
-@app.route('/student/<int:student_id>/enrollment', methods=['GET', 'POST'], endpoint='student_enrollment_alt')
+@app.route('/export_students_csv', endpoint='export_students_csv')
+@app.route('/students/export_csv')
 @login_required
-def student_enrollment(student_id):
+def export_students_csv():
+    import csv
+    import io
+    from flask import Response
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-
-    cursor.execute("SELECT * FROM students WHERE student_id = %s", (student_id,))
-    student = cursor.fetchone()
-
-    if not student:
-        flash('Student not found.', 'danger')
-        return redirect(url_for('students'))
-
-    if request.method == 'POST':
-        selected_id = request.form.get('offering_id') or request.form.get('course_id')
-        if not selected_id:
-            flash('Please select a valid course offering.', 'warning')
-        else:
-            try:
-                cursor.execute('INSERT INTO enrollments (student_id, offering_id) VALUES (%s, %s)', (student_id, selected_id))
-                conn.commit()
-                flash('Successfully enrolled student!', 'success')
-            except Exception as err:
-                conn.rollback()
-                flash(f'Enrollment failed: {err}', 'danger')
-        return redirect(url_for('student_enrollment', student_id=student_id))
-
-    cursor.execute("""
-        SELECT e.*, c.course_code, c.course_code AS course_name, c.units,
-               'Sec 1' AS section, '1st Sem' AS semester, '2026-2027' AS academic_year
-        FROM enrollments e
-        JOIN course_offerings co ON e.offering_id = co.offering_id
-        JOIN courses c ON co.course_id = c.course_id
-        WHERE e.student_id = %s
-    """, (student_id,))
-    enrolled_courses = cursor.fetchall()
-
-    cursor.execute("""
-        SELECT co.offering_id, co.course_id, c.course_code, c.course_code AS course_name, c.units,
-               'Sec 1' AS section, '1st Sem' AS semester, '2026-2027' AS academic_year
-        FROM course_offerings co
-        JOIN courses c ON co.course_id = c.course_id
-        WHERE co.offering_id NOT IN (
-            SELECT COALESCE(offering_id, 0) FROM enrollments WHERE student_id = %s
-        )
-    """, (student_id,))
-    available_offerings = cursor.fetchall()
-
+    cursor.execute("SELECT * FROM students")
+    students_data = cursor.fetchall()
     cursor.close()
     conn.close()
 
-    return render_template(
-        'student_enrollment.html',
-        student=student,
-        enrolled_courses=enrolled_courses,
-        enrolled=enrolled_courses,
-        available_offerings=available_offerings,
-        available=available_offerings
-    )
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    if students_data:
+        writer.writerow(list(students_data[0].keys()))
+        for row in students_data:
+            writer.writerow(list(row.values()))
+    else:
+        writer.writerow(["student_id", "first_name", "last_name", "email", "program_id"])
+
+    response = Response(output.getvalue(), mimetype="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=students_report.csv"
+    return response
+
+
+
+
+@app.route('/import_students_csv', methods=['POST'], endpoint='import_students_csv')
+@app.route('/students/import_csv', methods=['POST'])
+@login_required
+def import_students_csv():
+    import csv
+    import io
+
+    # Check for file in request
+    uploaded_file = None
+    for key in request.files:
+        if request.files[key].filename != '':
+            uploaded_file = request.files[key]
+            break
+
+    if not uploaded_file:
+        flash('No CSV file selected for import.', 'warning')
+        return redirect(url_for('students'))
+
+    try:
+        stream = io.StringIO(uploaded_file.stream.read().decode("UTF-8"), newline=None)
+        csv_reader = csv.DictReader(stream)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        count = 0
+        
+        for row in csv_reader:
+            first_name = row.get('first_name') or row.get('First Name') or row.get('firstname') or ''
+            last_name = row.get('last_name') or row.get('Last Name') or row.get('lastname') or ''
+            email = row.get('email') or row.get('Email') or ''
+            program_id = row.get('program_id') or row.get('Program ID') or None
+            
+            first_name = first_name.strip()
+            last_name = last_name.strip()
+            email = email.strip()
+
+            if first_name and last_name:
+                try:
+                    cursor.execute("""
+                        INSERT INTO students (first_name, last_name, email, program_id)
+                        VALUES (%s, %s, %s, %s)
+                    """, (first_name, last_name, email, program_id if program_id else None))
+                    count += 1
+                except Exception as err:
+                    print("Row import skipped/error:", err)
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+        flash(f'Successfully imported {count} student records from CSV!', 'success')
+    except Exception as e:
+        flash(f'Error processing CSV file: {str(e)}', 'danger')
+
+    return redirect(url_for('students'))
 
 
 
 
 
-
-
-
-@app.route('/course/new', methods=['GET', 'POST'])
+@app.route('/courses/new', methods=['GET', 'POST'], endpoint='course_new')
+@app.route('/courses/add', methods=['GET', 'POST'])
 @login_required
 def course_new():
     if request.method == 'POST':
-        code = request.form.get('course_code') or request.form.get('code', '')
-        title = request.form.get('course_title') or request.form.get('course_name') or request.form.get('course_description') or request.form.get('title', '')
-        units = request.form.get('units') or 3
-        
+        code = request.form.get('course_code')
+        title = request.form.get('course_title')
+        units = request.form.get('units', 3)
+        conn = get_db_connection()
+        cursor = conn.cursor()
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO courses (course_code, course_title, units) VALUES (%s, %s, %s)",
-                (code, title, units)
-            )
+            cursor.execute("INSERT INTO courses (course_code, course_title, units) VALUES (%s, %s, %s)", (code, title, units))
             conn.commit()
+            flash('Course added successfully!', 'success')
+        except Exception as e:
+            flash(f'Error adding course: {str(e)}', 'danger')
+        finally:
             cursor.close()
             conn.close()
-            flash('Course added successfully!', 'success')
-        except Exception as err:
-            flash(f'Failed to add course: {err}', 'danger')
+        return redirect(url_for('courses'))
+    return render_template('course_form.html')
+
+
+
+
+@app.route('/student/<int:student_id>/enrollment', endpoint='student_enrollment')
+@app.route('/enrollment/<int:student_id>')
+@login_required
+def student_enrollment_action(student_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM students WHERE student_id = %s", (student_id,))
+    student = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if not student:
+        flash('Student record not found.', 'danger')
+        return redirect(url_for('students'))
+        
+    return redirect(f'/reports/student_enrollment?student_id={student_id}')
+
+
+
+
+@app.route('/courses/<int:course_id>/edit', methods=['GET', 'POST'], endpoint='course_edit')
+@login_required
+def course_edit(course_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    if request.method == 'POST':
+        code = request.form.get('course_code')
+        title = request.form.get('course_title')
+        units = request.form.get('units', 3)
+        try:
+            cursor.execute("""
+                UPDATE courses 
+                SET course_code = %s, course_title = %s, units = %s 
+                WHERE course_id = %s
+            """, (code, title, units, course_id))
+            conn.commit()
+            flash('Course updated successfully!', 'success')
+        except Exception as e:
+            flash(f'Error updating course: {str(e)}', 'danger')
+        finally:
+            cursor.close()
+            conn.close()
         return redirect(url_for('courses'))
 
-    return render_template('course_form.html') if os.path.exists('templates/course_form.html') else redirect(url_for('courses'))
+    cursor.execute("SELECT * FROM courses WHERE course_id = %s", (course_id,))
+    course = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if not course:
+        flash('Course record not found.', 'danger')
+        return redirect(url_for('courses'))
+    return render_template('course_form.html', course=course)
+
+@app.route('/courses/<int:course_id>/delete', methods=['POST', 'GET'], endpoint='course_delete')
+@login_required
+def course_delete(course_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM courses WHERE course_id = %s", (course_id,))
+        conn.commit()
+        flash('Course deleted successfully!', 'success')
+    except Exception as e:
+        flash(f'Error deleting course: {str(e)}', 'danger')
+    finally:
+        cursor.close()
+        conn.close()
+    return redirect(url_for('courses'))
+
+
+
+
+@app.route('/reports/student_enrollment', endpoint='student_enrollment_report')
+@login_required
+def student_enrollment_report():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    cursor.execute("SELECT * FROM students ORDER BY last_name, first_name")
+    students_list = cursor.fetchall()
+    
+    student_id = request.args.get('student_id', type=int)
+    selected_student = None
+    enrolled_courses = []
+    
+    if student_id:
+        cursor.execute("SELECT * FROM students WHERE student_id = %s", (student_id,))
+        selected_student = cursor.fetchone()
+        
+        if selected_student:
+            try:
+                cursor.execute("""
+                    SELECT e.enrollment_id, e.enrollment_date, c.course_code, 
+                           COALESCE(c.course_title, c.course_code) AS course_title, 
+                           COALESCE(c.units, 3) AS units
+                    FROM enrollments e
+                    JOIN course_offerings co ON e.offering_id = co.offering_id
+                    JOIN courses c ON co.course_id = c.course_id
+                    WHERE e.student_id = %s
+                """, (student_id,))
+                enrolled_courses = cursor.fetchall()
+            except Exception:
+                try:
+                    cursor.execute("""
+                        SELECT e.enrollment_id, e.enrollment_date, c.course_code,
+                               COALESCE(c.course_title, c.course_code) AS course_title,
+                               COALESCE(c.units, 3) AS units
+                        FROM enrollment_items ei
+                        JOIN enrollments e ON ei.enrollment_id = e.enrollment_id
+                        JOIN course_offerings co ON ei.offering_id = co.offering_id
+                        JOIN courses c ON co.course_id = c.course_id
+                        WHERE e.student_id = %s
+                    """, (student_id,))
+                    enrolled_courses = cursor.fetchall()
+                except Exception:
+                    enrolled_courses = []
+                
+    cursor.close()
+    conn.close()
+    
+    return render_template(
+        'student_enrollment_report.html',
+        students=students_list,
+        selected_student=selected_student,
+        enrolled_courses=enrolled_courses,
+        student_id=student_id
+    )
 
 
 if __name__ == '__main__':

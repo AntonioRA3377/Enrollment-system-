@@ -7,7 +7,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center;" class="mb-3">
         <h2>Student Management Roster</h2>
         <div style="display: flex; gap: 8px;">
-            <a href="{{ url_for('export_students_csv') }}" class="btn btn-success" style="padding: 8px 14px; text-decoration: none; background: #198754; color: #ffffff; border-radius: 4px; font-weight: bold;">
+            <a href="{{ '/export_students_csv' }}" class="btn btn-success" style="padding: 8px 14px; text-decoration: none; background: #198754; color: #ffffff; border-radius: 4px; font-weight: bold;">
                 📥 Export CSV
             </a>
             <a href="{{ url_for('student_new') }}" class="btn btn-primary" style="padding: 8px 14px; text-decoration: none; background: #0d6efd; color: #ffffff; border-radius: 4px;">
@@ -18,7 +18,7 @@
 
     <!-- Bulk Import Accordion Form -->
     <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #e0e0e0;">
-        <form method="POST" action="{{ url_for('import_students_csv') }}" enctype="multipart/form-data" style="display: flex; align-items: center; gap: 15px;">
+        <form method="POST" action="{{ '/import_students_csv' }}" enctype="multipart/form-data" style="display: flex; align-items: center; gap: 15px;">
             <label style="font-weight: bold; margin: 0; white-space: nowrap;">Bulk Onboard via CSV:</label>
             <input type="file" name="file" accept=".csv" class="form-control" required style="padding: 5px;">
             <button type="submit" class="btn btn-success" style="padding: 6px 16px; background: #198754; color: white; border: none; border-radius: 4px; white-space: nowrap;">
@@ -67,7 +67,7 @@
                 <td style="padding: 10px;">{{ s.email }}</td>
                 <td style="padding: 10px;">{{ s.program_code or 'Unassigned' }}</td>
                 <td style="padding: 10px; text-align: center;">
-                    <a href="{{ url_for('student_profile', student_id=s.student_id) }}" class="btn btn-sm btn-info" style="margin-right: 5px; color: #fff; text-decoration: none; padding: 5px 10px; background: #0dcaf0; border-radius: 4px; font-size: 0.85rem;">View</a> <a href="{{ url_for('student_enrollment', student_id=s.student_id) }}" class="btn btn-sm btn-warning text-dark" style="padding: 3px 8px;">Enroll</a>
+                    <a href="{{ url_for('student_profile', student_id=s.student_id) }}" class="btn btn-sm btn-info" style="margin-right: 5px; color: #fff; text-decoration: none; padding: 5px 10px; background: #0dcaf0; border-radius: 4px; font-size: 0.85rem;">View</a> <a href="/student/{{ s.student_id }}/enrollment" class="btn btn-sm btn-warning text-dark" style="padding: 3px 8px;">Enroll</a>
                     <a href="{{ url_for('statement_of_account', student_id=s.student_id) }}" class="btn btn-sm btn-secondary" style="color: #fff; text-decoration: none; padding: 5px 10px; background: #6c757d; border-radius: 4px; font-size: 0.85rem;">SOA</a>
                 </td>
             </tr>
