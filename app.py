@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from functools import wraps
 import mysql.connector
-from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, session, Response, send_file, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 try:
     from xhtml2pdf import pisa
@@ -707,6 +707,131 @@ def student_enrollment_report():
         enrolled_courses=enrolled_courses,
         student_id=student_id
     )
+
+
+
+
+# ==============================================================================
+# LABS 26-29: RBAC GUARD, COMPLETE INTEGRATION HEALTH CHECK & ERROR HANDLERS
+# ==============================================================================
+
+@app.before_request
+def enforce_rbac_and_session():
+    public_prefixes = ('/login', '/register', '/logout', '/static', '/system/health')
+    path = request.path
+
+    if path == '/' or path.startswith(public_prefixes):
+        return None
+
+    role = session.get('role')
+    user_id = session.get('user_id')
+
+    if not role and not user_id:
+        return redirect('/login')
+
+    # Restrict student accounts from accessing admin-only modules (Lab 27)
+    admin_only_prefixes = (
+        '/admin',
+        '/students',
+        '/courses',
+        '/course_offerings',
+        '/offerings',
+        '/reports',
+        '/export_students_csv',
+        '/import_students_csv',
+        '/fees'
+    )
+    if role == 'student' and path.startswith(admin_only_prefixes):
+        abort(403)
+
+    # Prevent students from viewing another student's profile, COR, or SOA
+    if role == 'student' and session.get('student_id'):
+        own_id = int(session.get('student_id'))
+        match = re.search(r'/(?:student|statement_of_account|enrollment/confirmation|enrollment)/(\d+)', path)
+        if match:
+            target_id = int(match.group(1))
+            if target_id != own_id:
+                abort(403)
+
+
+@app.route('/system/health')
+def system_health():
+    from flask import jsonify
+    db_status = "disconnected"
+    tables_count = 0
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SHOW TABLES")
+        tables = cursor.fetchall()
+        tables_count = len(tables)
+        db_status = "connected"
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+
+    return jsonify({
+        "status": "ok" if db_status == "connected" else "degraded",
+        "database": db_status,
+        "tables_detected": tables_count,
+        "registered_routes": len(app.url_map._rules)
+    })
+
+
+@app.errorhandler(403)
+def forbidden_error(e):
+    return render_template('403.html'), 403
+
+
+@app.errorhandler(404)
+def not_found_error(e):
+    return render_template('404.html'), 404
+
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template('500.html'), 500
+
+
+
+
+@app.route('/reports/enrollment_summary', endpoint='enrollment_summary_report')
+@login_required
+def enrollment_summary_report():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    stats = {'total_students': 0, 'total_courses': 0, 'total_offerings': 0, 'total_enrollments': 0}
+    course_summary = []
+
+    for key, table in [('total_students', 'students'), ('total_courses', 'courses'),
+                       ('total_offerings', 'course_offerings'), ('total_enrollments', 'enrollments')]:
+        try:
+            cursor.execute(f"SELECT COUNT(*) AS cnt FROM {table}")
+            stats[key] = cursor.fetchone()['cnt']
+        except Exception:
+            pass
+
+    try:
+        cursor.execute("""
+            SELECT c.course_code,
+                   COALESCE(c.course_title, c.course_code) AS course_title,
+                   COALESCE(c.units, 3) AS units,
+                   COUNT(e.enrollment_id) AS enrolled_count
+            FROM courses c
+            LEFT JOIN course_offerings co ON c.course_id = co.course_id
+            LEFT JOIN enrollments e ON co.offering_id = e.offering_id
+            GROUP BY c.course_id, c.course_code, c.course_title, c.units
+            ORDER BY c.course_code
+        """)
+        course_summary = cursor.fetchall()
+    except Exception:
+        course_summary = []
+
+    cursor.close()
+    conn.close()
+    return render_template('enrollment_summary.html', stats=stats, course_summary=course_summary)
 
 
 if __name__ == '__main__':
