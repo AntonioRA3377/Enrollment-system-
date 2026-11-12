@@ -14,7 +14,7 @@ except ImportError:
     pisa = None
 
 app = Flask(__name__)
-app.secret_key = 'super_secret_key'
+app.secret_key = os.getenv('SECRET_KEY', 'enrollment_system_prod_secret_2026')
 
 UPLOAD_FOLDER = os.path.join('static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -832,6 +832,78 @@ def enrollment_summary_report():
     cursor.close()
     conn.close()
     return render_template('enrollment_summary.html', stats=stats, course_summary=course_summary)
+
+
+
+
+@app.route('/enrollment/confirmation/<int:student_id>', endpoint='enrollment_confirmation')
+@login_required
+def enrollment_confirmation(student_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # 1. Look up by student_id first
+    cursor.execute("SELECT * FROM students WHERE student_id = %s", (student_id,))
+    student = cursor.fetchone()
+
+    # 2. Fallback: if student_id was actually an enrollment_id, resolve the student
+    if not student:
+        try:
+            cursor.execute("""
+                SELECT s.* FROM students s
+                JOIN enrollments e ON s.student_id = e.student_id
+                WHERE e.enrollment_id = %s
+            """, (student_id,))
+            student = cursor.fetchone()
+        except Exception:
+            student = None
+
+    if not student:
+        cursor.close()
+        conn.close()
+        abort(404)
+
+    actual_student_id = student['student_id']
+    enrolled_courses = []
+
+    try:
+        cursor.execute("""
+            SELECT e.enrollment_id, e.enrollment_date, c.course_code,
+                   COALESCE(c.course_title, c.course_code) AS course_title,
+                   COALESCE(c.units, 3) AS units
+            FROM enrollments e
+            JOIN course_offerings co ON e.offering_id = co.offering_id
+            JOIN courses c ON co.course_id = c.course_id
+            WHERE e.student_id = %s
+        """, (actual_student_id,))
+        enrolled_courses = cursor.fetchall()
+    except Exception:
+        try:
+            cursor.execute("""
+                SELECT e.enrollment_id, e.enrollment_date, c.course_code,
+                       COALESCE(c.course_title, c.course_code) AS course_title,
+                       COALESCE(c.units, 3) AS units
+                FROM enrollment_items ei
+                JOIN enrollments e ON ei.enrollment_id = e.enrollment_id
+                JOIN course_offerings co ON ei.offering_id = co.offering_id
+                JOIN courses c ON co.course_id = c.course_id
+                WHERE e.student_id = %s
+            """, (actual_student_id,))
+            enrolled_courses = cursor.fetchall()
+        except Exception:
+            enrolled_courses = []
+
+    total_units = sum(int(row.get('units') or 3) for row in enrolled_courses)
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        'enrollment_confirmation.html',
+        student=student,
+        enrolled_courses=enrolled_courses,
+        total_units=total_units
+    )
 
 
 if __name__ == '__main__':

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Certificate of Registration (COR)</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            body { background: #fff !important; }
+        }
+    </style>
+</head>
+<body class="bg-light">
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <h3 class="mb-0">Official Certificate of Registration (Lab 21)</h3>
+        <div>
+            <button onclick="window.print()" class="btn btn-primary btn-sm">Print COR</button>
+            <a href="/dashboard" class="btn btn-outline-secondary btn-sm ms-2">Dashboard</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <span class="fw-bold">CERTIFICATE OF REGISTRATION</span>
+            <span class="badge bg-success">OFFICIAL RECORD</span>
+        </div>
+        <div class="card-body p-4">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Student ID:</strong> #{{ student.student_id }}</p>
+                    <p class="mb-1"><strong>Full Name:</strong> {{ student.first_name }} {{ student.last_name }}</p>
+                    <p class="mb-0"><strong>Email:</strong> {{ student.email or 'N/A' }}</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="mb-1"><strong>Total Enrolled Subjects:</strong> {{ enrolled_courses|length }}</p>
+                    <p class="mb-1"><strong>Total Units:</strong> {{ total_units }}</p>
+                    <p class="mb-0"><strong>Status:</strong> <span class="text-success fw-bold">Registered</span></p>
+                </div>
+            </div>
+
+            <table class="table table-bordered align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Enrollment ID</th>
+                        <th>Course Code</th>
+                        <th>Course Title</th>
+                        <th>Units</th>
+                        <th>Date Enrolled</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in enrolled_courses %}
+                    <tr>
+                        <td>#{{ c.enrollment_id }}</td>
+                        <td><strong>{{ c.course_code }}</strong></td>
+                        <td>{{ c.course_title }}</td>
+                        <td>{{ c.units }}</td>
+                        <td>{{ c.enrollment_date or 'Active Term' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            No courses enrolled yet for this student.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="mt-4 d-flex justify-content-between align-items-center no-print">
+                <a href="/student/{{ student.student_id }}/soa" class="btn btn-outline-primary btn-sm">
+                    View Statement of Account (SOA)
+                </a>
+                {% if session.get('role') == 'admin' %}
+                <a href="/reports/student_enrollment?student_id={{ student.student_id }}" class="btn btn-outline-dark btn-sm">
+                    Student Enrollment Report
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
