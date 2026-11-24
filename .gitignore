@@ -4,4 +4,11 @@ __pycache__/
 *.pyc
 backups/*.json
 backups/*.sql
+.DS_Storengrok
+*.zip
+__pycache__/
 .DS_Store
+.env
+
+cloudflared
+ngrok
